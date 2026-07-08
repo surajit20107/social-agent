@@ -28,7 +28,7 @@ export interface Conversation {
 
 export interface SocialAccount {
   id: string;
-  platform: 'instagram' | 'twitter' | 'linkedin' | 'facebook' | 'tiktok' | 'youtube';
+  platform: 'instagram' | 'twitter' | 'linkedin' | 'facebook' | 'tiktok' | 'youtube' | 'threads' | 'bluesky' | 'pinterest' | 'reddit' | 'snapchat' | 'telegram' | 'googlebusiness' | 'whatsapp';
   username: string;
   profileName: string;
   avatarUrl?: string;

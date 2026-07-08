@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Plus, Globe, Camera, Hash, Link2, RefreshCw, Check, X, AlertCircle, ExternalLink } from 'lucide-react';
+import { Users, Plus, Globe, Camera, Hash, Link2, RefreshCw, Check, X, AlertCircle, ExternalLink, Music, Play, MessageSquare, Cloud, MapPin, MessageCircle, Ghost, Send, Store, Phone } from 'lucide-react';
 import { getAccounts, saveAccounts, getPlatformColor, getSettings } from '../lib/storage';
 import { connectZenrioAccount, disconnectZenrioAccount, fetchZenrioAccounts } from '../lib/api';
 import type { SocialAccount } from '../types';
@@ -14,6 +14,16 @@ const PLATFORM_CONFIG = [
   { id: 'twitter', name: 'X (Twitter)', icon: Hash, color: '#1DA1F2' },
   { id: 'linkedin', name: 'LinkedIn', icon: Link2, color: '#0A66C2' },
   { id: 'facebook', name: 'Facebook', icon: Globe, color: '#1877F2' },
+  { id: 'tiktok', name: 'TikTok', icon: Music, color: '#000000' },
+  { id: 'youtube', name: 'YouTube', icon: Play, color: '#FF0000' },
+  { id: 'threads', name: 'Threads', icon: MessageSquare, color: '#000000' },
+  { id: 'bluesky', name: 'Bluesky', icon: Cloud, color: '#0285FF' },
+  { id: 'pinterest', name: 'Pinterest', icon: MapPin, color: '#E60023' },
+  { id: 'reddit', name: 'Reddit', icon: MessageCircle, color: '#FF4500' },
+  { id: 'snapchat', name: 'Snapchat', icon: Ghost, color: '#FFFC00' },
+  { id: 'telegram', name: 'Telegram', icon: Send, color: '#0088CC' },
+  { id: 'googlebusiness', name: 'Google Business', icon: Store, color: '#4285F4' },
+  { id: 'whatsapp', name: 'WhatsApp', icon: Phone, color: '#25D366' },
 ] as const;
 
 export default function Accounts() {
@@ -187,10 +197,11 @@ export default function Accounts() {
                     className="w-10 h-10 rounded-xl flex items-center justify-center"
                     style={{ backgroundColor: `${getPlatformColor(account.platform)}15` }}
                   >
-                    {account.platform === 'instagram' && <Camera size={18} style={{ color: getPlatformColor(account.platform) }} />}
-                    {account.platform === 'twitter' && <Hash size={18} style={{ color: getPlatformColor(account.platform) }} />}
-                    {account.platform === 'linkedin' && <Link2 size={18} style={{ color: getPlatformColor(account.platform) }} />}
-                    {account.platform === 'facebook' && <Globe size={18} style={{ color: getPlatformColor(account.platform) }} />}
+                    {(() => {
+                      const cfg = PLATFORM_CONFIG.find(p => p.id === account.platform);
+                      const Icon = cfg?.icon || Globe;
+                      return <Icon size={18} style={{ color: getPlatformColor(account.platform) }} />;
+                    })()}
                   </div>
                   <div>
                     <p className="font-medium text-sm capitalize">{account.profileName}</p>

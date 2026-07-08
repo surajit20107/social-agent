@@ -140,6 +140,14 @@ export function getPlatformColor(platform: string): string {
     facebook: '#1877F2',
     tiktok: '#000000',
     youtube: '#FF0000',
+    threads: '#000000',
+    bluesky: '#0285FF',
+    pinterest: '#E60023',
+    reddit: '#FF4500',
+    snapchat: '#FFFC00',
+    telegram: '#0088CC',
+    googlebusiness: '#4285F4',
+    whatsapp: '#25D366',
   };
   return colors[platform.toLowerCase()] || '#a1a1aa';
 }
@@ -152,6 +160,14 @@ export function getPlatformIcon(platform: string): string {
     facebook: 'facebook',
     tiktok: 'music',
     youtube: 'youtube',
+    threads: 'messagesquare',
+    bluesky: 'cloud',
+    pinterest: 'mappin',
+    reddit: 'messagecircle',
+    snapchat: 'ghost',
+    telegram: 'send',
+    googlebusiness: 'store',
+    whatsapp: 'phone',
   };
   return icons[platform.toLowerCase()] || 'globe';
 }
