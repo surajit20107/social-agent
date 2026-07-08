@@ -135,17 +135,35 @@ export async function disconnectZenrioAccount(accountId: string) {
   });
 }
 
-export async function createPost(platform: string, content: string, mediaUrls?: string[]) {
+export async function createPost(platform: string, content: string, mediaUrls?: string[], accountId?: string) {
+  if (!accountId) {
+    try {
+      const accountsResult = await fetchZenrioAccounts();
+      const accounts = Array.isArray(accountsResult) ? accountsResult : accountsResult?.accounts || accountsResult?.data || [];
+      const matching = accounts.find((a: any) => a.platform === platform);
+      if (matching) {
+        accountId = matching._id || matching.id;
+      }
+    } catch {
+      // proceed without accountId
+    }
+  }
+
   return zenrioFetch('posts', {
     method: 'POST',
-    body: JSON.stringify({ platform, content, mediaUrls }),
+    body: JSON.stringify({
+      content,
+      publishNow: true,
+      mediaUrls,
+      platforms: [{ platform, accountId }],
+    }),
   });
 }
 
-export async function schedulePost(platform: string, content: string, scheduledAt: string, mediaUrls?: string[]) {
+export async function schedulePost(platform: string, content: string, scheduledAt: string, mediaUrls?: string[], accountId?: string) {
   return zenrioFetch('posts/schedule', {
     method: 'POST',
-    body: JSON.stringify({ platform, content, scheduledAt, mediaUrls }),
+    body: JSON.stringify({ platform, content, scheduledAt, mediaUrls, accountId }),
   });
 }
 
@@ -173,6 +191,123 @@ export async function replyToDM(conversationId: string, message: string) {
   });
 }
 
+// ── Post Management ──
+export async function listPosts(platform?: string, status?: string, accountId?: string) {
+  const params = new URLSearchParams();
+  if (platform) params.set('platform', platform);
+  if (status) params.set('status', status);
+  if (accountId) params.set('accountId', accountId);
+  const qs = params.toString();
+  return zenrioFetch(`posts${qs ? `?${qs}` : ''}`);
+}
+
+export async function getPost(postId: string) {
+  return zenrioFetch(`posts/${encodeURIComponent(postId)}`);
+}
+
+export async function editPost(postId: string, content: string, overrides: Record<string, unknown> = {}) {
+  return zenrioFetch(`posts/${encodeURIComponent(postId)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ content, ...overrides }),
+  });
+}
+
+export async function deletePost(postId: string) {
+  return zenrioFetch(`posts/${encodeURIComponent(postId)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function unpublishPost(postId: string) {
+  return zenrioFetch(`posts/${encodeURIComponent(postId)}/unpublish`, {
+    method: 'POST',
+  });
+}
+
+export async function retryPost(postId: string) {
+  return zenrioFetch(`posts/${encodeURIComponent(postId)}/retry`, {
+    method: 'POST',
+  });
+}
+
+// ── Comments ──
+export async function getPostComments(platform: string, postId: string) {
+  return zenrioFetch(`comments?platform=${encodeURIComponent(platform)}&postId=${encodeURIComponent(postId)}`);
+}
+
+export async function hideComment(_postId: string, commentId: string) {
+  return zenrioFetch(`comments/${encodeURIComponent(commentId)}/hide`, {
+    method: 'POST',
+  });
+}
+
+export async function likeComment(_postId: string, commentId: string) {
+  return zenrioFetch(`comments/${encodeURIComponent(commentId)}/like`, {
+    method: 'POST',
+  });
+}
+
+export async function deleteComment(_postId: string, commentId: string) {
+  return zenrioFetch(`comments/${encodeURIComponent(commentId)}`, {
+    method: 'DELETE',
+  });
+}
+
+// ── Conversations / DMs ──
+export async function listConversations(platform?: string) {
+  const qs = platform ? `?platform=${encodeURIComponent(platform)}` : '';
+  return zenrioFetch(`conversations${qs}`);
+}
+
+export async function getConversationMessages(conversationId: string) {
+  return zenrioFetch(`conversations/${encodeURIComponent(conversationId)}/messages`);
+}
+
+// ── Account ──
+export async function getAccountHealth() {
+  return zenrioFetch('accounts/health');
+}
+
+export async function getAccountFollowerStats() {
+  return zenrioFetch('accounts/stats');
+}
+
+// ── Analytics ──
+export async function getPostAnalytics(platform?: string) {
+  const qs = platform ? `?platform=${encodeURIComponent(platform)}` : '';
+  return zenrioFetch(`analytics/posts${qs}`);
+}
+
+export async function getDailyAnalytics(platform?: string) {
+  const qs = platform ? `?platform=${encodeURIComponent(platform)}` : '';
+  return zenrioFetch(`analytics/daily${qs}`);
+}
+
+export async function getBestPostingTime(platform?: string) {
+  const qs = platform ? `?platform=${encodeURIComponent(platform)}` : '';
+  return zenrioFetch(`analytics/best-time${qs}`);
+}
+
+// ── Media ──
+export async function uploadMedia(url: string) {
+  return zenrioFetch('media', {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  });
+}
+
+// ── Queue ──
+export async function listQueueSlots() {
+  return zenrioFetch('queue');
+}
+
+export async function createQueueSlot(data: Record<string, unknown>) {
+  return zenrioFetch('queue', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
 // AI Agent system prompt for analyzing user requests
 export const AGENT_SYSTEM_PROMPT = `You are SocialFlow AI Agent, an intelligent social media management assistant.
 Your role is to analyze user requests and determine what action needs to be taken.
@@ -189,19 +324,31 @@ Available actions:
 - disconnect_account: Disconnect a social media account
 - general_chat: General conversation that doesn't require any action
 
+CRITICAL: When the user asks to "create a post", "make a post", "post something", "schedule a post", or similar, you MUST use the create_post or schedule_post action. Do NOT just list accounts — actually perform the posting action.
+
+For create_post and schedule_post, always extract:
+- The platform (linkedin, instagram, twitter, facebook, etc.) from the user's request
+- The actual post content the user wants to publish
+- The accountId if the user specifies which account to use (e.g., by username)
+
 Respond with a JSON object:
 {
   "action": "action_name",
-  "platform": "platform_name (if applicable)",
-  "content": "extracted content or user message",
-  "metadata": {}
+  "platform": "platform_name (e.g., linkedin, instagram, twitter)",
+  "content": "The actual post content to publish. Extract the user's message text exactly.",
+  "metadata": {
+    "accountId": "account_id_if_specified_or_omit",
+    "mediaUrls": ["url1", "url2"]
+  }
 }
 
 If the request doesn't require an action, respond with:
 {
   "action": "general_chat",
   "content": "Brief analysis of what the user said"
-}`;
+}
+
+IMPORTANT: You must extract the actual content the user wants to post. For example, if they say "create a post on linkedin saying Hello World", you should set content to "Hello World" and platform to "linkedin". Do NOT set content to the user's entire request.`;
 
 // Response AI system prompt for generating user-friendly responses
 export const RESPONSE_SYSTEM_PROMPT = `You are SocialFlow AI, a friendly and professional social media management assistant. 

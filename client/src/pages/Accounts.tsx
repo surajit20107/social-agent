@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Plus, Globe, Camera, Hash, Link2, RefreshCw, Check, X, AlertCircle, ExternalLink, Music, Play, MessageSquare, Cloud, MapPin, MessageCircle, Ghost, Send, Store, Phone } from 'lucide-react';
 import { getAccounts, saveAccounts, getPlatformColor, getSettings } from '../lib/storage';
-import { connectZenrioAccount, disconnectZenrioAccount, fetchZenrioAccounts } from '../lib/api';
+import { connectZenrioAccount, disconnectZenrioAccount, fetchZenrioAccounts, getAccountFollowerStats } from '../lib/api';
 import type { SocialAccount } from '../types';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
@@ -42,26 +42,62 @@ export default function Accounts() {
 
     setSyncing(true);
     try {
-      const zenrioAccounts = await fetchZenrioAccounts();
-      // Zernio returns { accounts: [...] } — handle both formats
-      const list = Array.isArray(zenrioAccounts)
-        ? zenrioAccounts
-        : zenrioAccounts?.accounts || zenrioAccounts?.data || [];
-      if (Array.isArray(list) && list.length > 0) {
-        const mapped: SocialAccount[] = list.map((acc: any) => ({
-          id: acc._id || acc.id || `${acc.platform}-${Date.now()}`,
-          platform: acc.platform?.toLowerCase() || 'instagram',
-          username: acc.username || `user_${acc.platform}`,
-          profileName: acc.name || acc.profileName || `${acc.platform} Account`,
-          connected: true,
-          followers: acc.followers || Math.floor(Math.random() * 10000),
-          following: acc.following || Math.floor(Math.random() * 500),
-          posts: acc.posts || Math.floor(Math.random() * 200),
-        }));
+      const [zenrioAccounts, followerStatsResult] = await Promise.allSettled([
+        fetchZenrioAccounts(),
+        getAccountFollowerStats(),
+      ]);
+
+      // Parse accounts list
+      const accountsData = zenrioAccounts.status === 'fulfilled' ? zenrioAccounts.value : null;
+      const list = Array.isArray(accountsData)
+        ? accountsData
+        : accountsData?.accounts || accountsData?.data || [];
+
+      // Parse follower stats into a map by account id
+      const statsMap = new Map<string, { followers: number; following: number; posts: number }>();
+      if (followerStatsResult.status === 'fulfilled' && followerStatsResult.value) {
+        try {
+          const statsData = followerStatsResult.value;
+          const raw = Array.isArray(statsData) ? statsData
+            : Array.isArray(statsData?.stats) ? statsData.stats
+            : Array.isArray(statsData?.data) ? statsData.data
+            : Array.isArray(statsData?.accounts) ? statsData.accounts
+            : statsData?.stats ?? statsData?.data ?? statsData?.accounts ?? [];
+          const statsList = Array.isArray(raw) ? raw : [];
+          for (const s of statsList) {
+            statsMap.set(s._id || s.accountId || s.id || s.platform, {
+              followers: s.followers ?? s.followerCount ?? s.count ?? 0,
+              following: s.following ?? s.followingCount ?? 0,
+              posts: s.posts ?? s.postCount ?? 0,
+            });
+          }
+        } catch {
+          console.warn('Could not parse follower stats response');
+        }
+      }
+
+      if (list.length > 0) {
+        const mapped: SocialAccount[] = list.map((acc: any) => {
+          const stats = statsMap.get(acc._id);
+          return {
+            id: acc._id || acc.id || `${acc.platform}-${Date.now()}`,
+            platform: acc.platform?.toLowerCase() || 'instagram',
+            username: acc.username || `user_${acc.platform}`,
+            profileName: acc.name || acc.displayName || acc.profileName || `${acc.platform} Account`,
+            avatarUrl: acc.avatar || acc.avatarUrl || acc.profileImageUrl,
+            connected: true,
+            followers: (stats as any)?.followers ?? 0,
+            following: (stats as any)?.following ?? 0,
+            posts: (stats as any)?.posts ?? 0,
+          };
+        });
         saveAccounts(mapped);
         setAccounts(mapped);
-        toast.success('Accounts synced from Zernio');
-      } else if (list.length === 0) {
+        const statsLoaded = statsMap.size > 0;
+        toast.success(statsLoaded
+          ? `Synced ${list.length} accounts with stats`
+          : `Synced ${list.length} accounts (stats unavailable)`);
+      } else {
         toast('No accounts found on Zernio. Connect one above.', { icon: 'ℹ️' });
       }
     } catch (error: any) {
@@ -114,9 +150,9 @@ export default function Accounts() {
           username: result.username || `user_${platform}`,
           profileName: result.name || `My ${platform} Account`,
           connected: true,
-          followers: result.followers || 0,
-          following: result.following || 0,
-          posts: result.posts || 0,
+          followers: result.followers ?? result.followerCount ?? 0,
+          following: result.following ?? result.followingCount ?? 0,
+          posts: result.posts ?? result.postCount ?? 0,
         };
         const updated = [...accounts, newAccount];
         saveAccounts(updated);
