@@ -1,0 +1,24 @@
+{
+  "name": "social-agent",
+  "version": "1.0.0",
+  "description": "SocialFlow AI Agent",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"cd client && npm run dev\" \"cd server && npm run dev\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/surajit20107/social-agent.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/surajit20107/social-agent/issues"
+  },
+  "homepage": "https://github.com/surajit20107/social-agent#readme",
+  "dependencies": {
+    "concurrently": "^10.0.3"
+  }
+}

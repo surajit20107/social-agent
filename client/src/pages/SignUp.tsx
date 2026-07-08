@@ -2,22 +2,21 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Sparkles, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 
 export default function SignUp() {
   const navigate = useNavigate();
+  const { signup, isLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      navigate('/settings');
-    }, 1000);
+    if (!form.name || !form.email || !form.password) return;
+    await signup(form.name, form.email, form.password);
+    navigate('/settings');
   };
 
   return (
@@ -75,7 +74,7 @@ export default function SignUp() {
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-          <Button type="submit" loading={loading} className="w-full">
+          <Button type="submit" loading={isLoading} className="w-full">
             Create Account
           </Button>
         </form>

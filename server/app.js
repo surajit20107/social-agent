@@ -8,9 +8,19 @@ var cors = require('cors');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
+var zenrioRouter = require('./routes/zenrio');
 
 var app = express();
-app.use(cors());
+
+// CORS configuration - allow frontend origin
+const corsOptions = {
+  origin: ['http://localhost:5173', 'http://localhost:4173', 'http://127.0.0.1:5173'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-zenrio-api-key'],
+  credentials: true,
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle preflight
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -24,6 +34,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+app.use('/api/zenrio', zenrioRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

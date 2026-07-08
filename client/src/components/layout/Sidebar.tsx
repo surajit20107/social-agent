@@ -10,9 +10,10 @@ import {
   ChevronRight,
   Sparkles,
   LogOut,
-  Home,
   Info,
+  User,
 } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 import { getConversations, deleteConversation, generateId } from '../../lib/storage';
 import { formatRelativeTime, truncate } from '../../lib/storage';
 import type { Conversation } from '../../types';
@@ -24,6 +25,7 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>(() => getConversations());
 
   const refreshConversations = () => {
@@ -33,6 +35,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const handleNewChat = () => {
     const id = generateId();
     navigate(`/chat/${id}`);
+    if (window.innerWidth < 1024) onToggle();
     setTimeout(refreshConversations, 100);
   };
 
@@ -43,8 +46,12 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     refreshConversations();
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
   const navItems = [
-    { to: '/', icon: Home, label: 'Home' },
     { to: '/chat', icon: MessageSquare, label: 'Chats' },
     { to: '/accounts', icon: Users, label: 'Accounts' },
     { to: '/settings', icon: Settings, label: 'Settings' },
@@ -113,7 +120,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === '/'}
+              end={item.to === '/chat'}
               onClick={() => {
                 if (window.innerWidth < 1024) onToggle();
               }}
@@ -175,9 +182,27 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </div>
         )}
 
-        {/* Bottom */}
-        <div className={`p-3 border-t border-border ${collapsed ? 'flex justify-center' : ''}`}>
-          <button className={`flex items-center gap-2 text-muted-foreground hover:text-danger transition-colors text-sm ${collapsed ? 'justify-center w-10 h-10' : 'px-3 h-10 w-full rounded-lg hover:bg-muted/30'}`}>
+        {/* User & Logout */}
+        <div className={`border-t border-border ${collapsed ? 'p-2' : 'p-3'}`}>
+          {!collapsed && user && (
+            <div className="flex items-center gap-2 px-3 py-2 mb-1">
+              <div className="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center">
+                <User size={12} className="text-accent" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">{user.name}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
+              </div>
+            </div>
+          )}
+          <button
+            onClick={handleLogout}
+            className={`flex items-center gap-2 text-muted-foreground hover:text-danger transition-colors text-sm w-full rounded-lg ${
+              collapsed
+                ? 'justify-center h-10 w-10 mx-auto'
+                : 'px-3 h-10 hover:bg-muted/30'
+            }`}
+          >
             <LogOut size={16} />
             {!collapsed && <span>Sign Out</span>}
           </button>
