@@ -268,8 +268,12 @@ export async function getAccountHealth() {
   return zenrioFetch('accounts/health');
 }
 
+export async function getAccount(id: string) {
+  return zenrioFetch(`accounts/${encodeURIComponent(id)}`);
+}
+
 export async function getAccountFollowerStats() {
-  return zenrioFetch('accounts/stats');
+  return zenrioFetch('accounts/follower-stats');
 }
 
 // ── Analytics ──
@@ -280,7 +284,7 @@ export async function getPostAnalytics(platform?: string) {
 
 export async function getDailyAnalytics(platform?: string) {
   const qs = platform ? `?platform=${encodeURIComponent(platform)}` : '';
-  return zenrioFetch(`analytics/daily${qs}`);
+  return zenrioFetch(`analytics/daily-metrics${qs}`);
 }
 
 export async function getBestPostingTime(platform?: string) {

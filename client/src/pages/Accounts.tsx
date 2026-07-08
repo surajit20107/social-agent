@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Plus, Globe, Camera, Hash, Link2, RefreshCw, Check, X, AlertCircle, ExternalLink, Music, Play, MessageSquare, Cloud, MapPin, MessageCircle, Ghost, Send, Store, Phone } from 'lucide-react';
 import { getAccounts, saveAccounts, getPlatformColor, getSettings } from '../lib/storage';
-import { connectZenrioAccount, disconnectZenrioAccount, fetchZenrioAccounts, getAccountFollowerStats } from '../lib/api';
+import { connectZenrioAccount, disconnectZenrioAccount, fetchZenrioAccounts, getAccountFollowerStats, getAccount, getDailyAnalytics, listPosts } from '../lib/api';
 import type { SocialAccount } from '../types';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
@@ -49,27 +49,34 @@ export default function Accounts() {
 
       // Parse accounts list
       const accountsData = zenrioAccounts.status === 'fulfilled' ? zenrioAccounts.value : null;
+      console.log('[Zernio Sync] Accounts response:', accountsData);
       const list = Array.isArray(accountsData)
         ? accountsData
         : accountsData?.accounts || accountsData?.data || [];
+
+      const hasAnalyticsAccess = accountsData?.hasAnalyticsAccess;
 
       // Parse follower stats into a map by account id
       const statsMap = new Map<string, { followers: number; following: number; posts: number }>();
       if (followerStatsResult.status === 'fulfilled' && followerStatsResult.value) {
         try {
           const statsData = followerStatsResult.value;
+          console.log('[Zernio Sync] Follower-stats response:', statsData);
           const raw = Array.isArray(statsData) ? statsData
+            : Array.isArray(statsData?.accounts) ? statsData.accounts
             : Array.isArray(statsData?.stats) ? statsData.stats
             : Array.isArray(statsData?.data) ? statsData.data
-            : Array.isArray(statsData?.accounts) ? statsData.accounts
-            : statsData?.stats ?? statsData?.data ?? statsData?.accounts ?? [];
+            : [];
           const statsList = Array.isArray(raw) ? raw : [];
           for (const s of statsList) {
-            statsMap.set(s._id || s.accountId || s.id || s.platform, {
-              followers: s.followers ?? s.followerCount ?? s.count ?? 0,
-              following: s.following ?? s.followingCount ?? 0,
-              posts: s.posts ?? s.postCount ?? 0,
-            });
+            const id = s._id || s.accountId || s.id;
+            if (id) {
+              statsMap.set(id, {
+                followers: s.currentFollowers ?? s.followers ?? s.followerCount ?? s.followersCount ?? 0,
+                following: s.following ?? s.followingCount ?? 0,
+                posts: s.posts ?? s.postCount ?? 0,
+              });
+            }
           }
         } catch {
           console.warn('Could not parse follower stats response');
@@ -77,23 +84,62 @@ export default function Accounts() {
       }
 
       if (list.length > 0) {
-        const mapped: SocialAccount[] = list.map((acc: any) => {
+        // Fetch individual account details for richer stats
+        const accountDetails = await Promise.allSettled(
+          list.map((acc: any) => getAccount(acc._id))
+        );
+
+        // Try to get post counts from analytics
+        let platformPostCounts: Record<string, number> = {};
+        try {
+          const analyticsResult = await getDailyAnalytics();
+          if (analyticsResult?.platformBreakdown) {
+            for (const pb of analyticsResult.platformBreakdown) {
+              platformPostCounts[pb.platform] = (platformPostCounts[pb.platform] || 0) + (pb.postCount || 0);
+            }
+          }
+        } catch {
+          // analytics unavailable
+        }
+
+        // Also try counting Zernio posts per platform as fallback
+        try {
+          const allPosts = await listPosts();
+          const postsList = Array.isArray(allPosts) ? allPosts : allPosts?.posts || allPosts?.data || [];
+          const countMap: Record<string, number> = {};
+          for (const p of postsList) {
+            const pPlatform = p.platform?.toLowerCase();
+            if (pPlatform) countMap[pPlatform] = (countMap[pPlatform] || 0) + 1;
+          }
+          // Merge with analytics counts (prefer analytics if available)
+          for (const [plat, cnt] of Object.entries(countMap)) {
+            platformPostCounts[plat] = Math.max(platformPostCounts[plat] || 0, cnt);
+          }
+        } catch {
+          // listPosts unavailable
+        }
+
+        const mapped: SocialAccount[] = list.map((acc: any, i: number) => {
           const stats = statsMap.get(acc._id);
+          const detail = accountDetails[i]?.status === 'fulfilled' ? accountDetails[i]?.value : null;
+          if (detail) console.log(`[Zernio Sync] Detail for ${acc._id}:`, detail);
+          const detailData = detail?.account || detail;
+          const platformLower = (acc.platform || '').toLowerCase();
           return {
             id: acc._id || acc.id || `${acc.platform}-${Date.now()}`,
-            platform: acc.platform?.toLowerCase() || 'instagram',
+            platform: platformLower || 'instagram',
             username: acc.username || `user_${acc.platform}`,
             profileName: acc.name || acc.displayName || acc.profileName || `${acc.platform} Account`,
-            avatarUrl: acc.avatar || acc.avatarUrl || acc.profileImageUrl,
+            avatarUrl: acc.avatar || acc.avatarUrl || acc.profileImageUrl || detailData?.profilePicture,
             connected: true,
-            followers: (stats as any)?.followers ?? 0,
+            followers: (stats as any)?.followers ?? acc.followersCount ?? detailData?.followersCount ?? 0,
             following: (stats as any)?.following ?? 0,
-            posts: (stats as any)?.posts ?? 0,
+            posts: (stats as any)?.posts ?? acc.posts ?? detailData?.postCount ?? detailData?.posts ?? platformPostCounts[platformLower] ?? 0,
           };
         });
         saveAccounts(mapped);
         setAccounts(mapped);
-        const statsLoaded = statsMap.size > 0;
+        const statsLoaded = statsMap.size > 0 || mapped.some(a => a.followers > 0 || a.posts > 0);
         toast.success(statsLoaded
           ? `Synced ${list.length} accounts with stats`
           : `Synced ${list.length} accounts (stats unavailable)`);
