@@ -89,8 +89,10 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             </div>
           )}
           {collapsed && (
-            <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
-              <Sparkles size={14} className="text-white" />
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
+                <Sparkles size={14} className="text-white" />
+              </div>
             </div>
           )}
           <button

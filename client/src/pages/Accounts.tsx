@@ -139,7 +139,7 @@ export default function Accounts() {
         });
         saveAccounts(mapped);
         setAccounts(mapped);
-        const statsLoaded = statsMap.size > 0 || mapped.some(a => a.followers > 0 || a.posts > 0);
+        const statsLoaded = statsMap.size > 0 || mapped.some(a => (a.followers ?? 0) > 0 || (a.posts ?? 0) > 0);
         toast.success(statsLoaded
           ? `Synced ${list.length} accounts with stats`
           : `Synced ${list.length} accounts (stats unavailable)`);
@@ -293,7 +293,7 @@ export default function Accounts() {
                 <div className="flex items-center gap-4">
                   <div className="hidden md:flex items-center gap-3 text-xs text-muted-foreground">
                     <span>{account.followers?.toLocaleString()} followers</span>
-                    <span>{account.posts} posts</span>
+                    {/* <span>{account.posts} posts</span> */}
                   </div>
                   <Badge variant="success">
                     <Check size={10} />
