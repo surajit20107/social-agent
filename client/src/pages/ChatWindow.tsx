@@ -505,10 +505,13 @@ export default function ChatWindow() {
 
       // Step 3: Response AI generates user-friendly response
       const actionStatus = pendingMsg.metadata?.status || "completed";
+      const memorySection = memoryContext
+        ? `\nRelevant conversation context:\n${memoryContext}`
+        : "";
       const responsePrompt =
         agentAction.action === "general_chat"
-          ? `The user said: "${text}". Respond naturally and helpfully.`
-          : `Action: ${agentAction.action} on ${agentAction.platform || "social media"}.\nStatus: ${actionStatus}\nResult: ${actionResult}\n\nGenerate a friendly response explaining what happened. If the action failed, suggest what the user can do to fix it (e.g., connecting the account first, configuring the API key, etc.).`;
+          ? `The user said: "${text}".${memorySection}\n\nRespond naturally and helpfully.`
+          : `Action: ${agentAction.action} on ${agentAction.platform || "social media"}.\nStatus: ${actionStatus}\nResult: ${actionResult}${memorySection}\n\nGenerate a friendly response explaining what happened.`;
 
       const finalResponse = await chatWithOpenRouter(
         [{ role: "user", content: responsePrompt }],
