@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeHighlight from 'rehype-highlight';
 import { User, Sparkles, Check, Loader2, AlertCircle } from "lucide-react";
 import type { Message } from "../../types";
 
@@ -36,7 +37,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
         >
           {message.content ? (
             <div className="whitespace-pre-wrap">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
                 {message.content}
               </ReactMarkdown>
             </div>
