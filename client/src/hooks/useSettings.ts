@@ -7,6 +7,7 @@ const DEFAULT_SETTINGS: Settings = {
   openRouterModel: 'openai/gpt-4o-mini',
   customModel: '',
   zenrioApiKey: '',
+  supermemoryApiKey: '',
 };
 
 export function useSettings() {

@@ -3,6 +3,7 @@ export interface Settings {
   openRouterModel: string;
   customModel: string;
   zenrioApiKey: string;
+  supermemoryApiKey: string;
 }
 
 export interface Message {

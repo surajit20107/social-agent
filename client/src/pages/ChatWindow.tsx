@@ -48,6 +48,7 @@ import {
 import type { Message, Conversation } from "../types";
 import Button from "../components/ui/Button";
 import toast from "react-hot-toast";
+import { retrieveMemoryContext, storeMemory } from "../lib/memory";
 
 export default function ChatWindow() {
   const { id } = useParams<{ id: string }>();
@@ -452,9 +453,14 @@ export default function ChatWindow() {
       };
       setConversation(convWithPending);
 
+      const memoryContext = await retrieveMemoryContext(id, text);
+      const enrichedSystemPrompt = memoryContext
+        ? `${AGENT_SYSTEM_PROMPT}\n\nRelevant conversation history:\n${memoryContext}`
+        : AGENT_SYSTEM_PROMPT;
+
       const agentResponse = await chatWithOpenRouter(
         [{ role: "user", content: text }],
-        AGENT_SYSTEM_PROMPT,
+        enrichedSystemPrompt,
       );
 
       // Parse agent's JSON response
@@ -532,6 +538,7 @@ export default function ChatWindow() {
         updatedAt: Date.now(),
       };
 
+      storeMemory(id, text, finalResponse, agentAction.action);
       setConversation(finalConv);
       saveConversation(finalConv);
     } catch (error: any) {
