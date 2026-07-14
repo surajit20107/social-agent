@@ -1,4 +1,6 @@
 import { motion } from "framer-motion";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { User, Sparkles, Check, Loader2, AlertCircle } from "lucide-react";
 import type { Message } from "../../types";
 
@@ -33,7 +35,11 @@ export default function ChatMessage({ message }: ChatMessageProps) {
           } ${isSystem ? "bg-muted/50 italic" : ""}`}
         >
           {message.content ? (
-            <p className="whitespace-pre-wrap">{message.content}</p>
+            <div className="whitespace-pre-wrap">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {message.content}
+              </ReactMarkdown>
+            </div>
           ) : message.metadata?.status === "pending" ? (
             <div className="flex items-center gap-1.5 py-0.5">
               <span
